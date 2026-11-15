@@ -153,8 +153,10 @@ CREATE TABLE dbo.CarImages
 CREATE INDEX IX_CarImages_CarId ON dbo.CarImages (CarId);
 
 -- 每台車最多一張主圖
+-- 第二欄 IsPrimary 的值已被篩選條件固定，效果等同只看 CarId；
+-- 加上它是為了避免 EF scaffold 把「CarId 唯一」誤判成 Car 與 CarImage 一對一
 CREATE UNIQUE INDEX UX_CarImages_CarId_Primary
-    ON dbo.CarImages (CarId)
+    ON dbo.CarImages (CarId, IsPrimary)
     WHERE IsPrimary = 1;
 GO
 
@@ -260,8 +262,10 @@ CREATE INDEX IX_Orders_CarId  ON dbo.Orders (CarId);
 CREATE INDEX IX_Orders_UserId ON dbo.Orders (UserId);
 
 -- 同一台車同時只能有一筆付款中的訂單（RowVersion 之外的第二道防線）
+-- 第二欄 PaymentStatus 的值已被篩選條件固定，效果等同只看 CarId；
+-- 加上它是為了避免 EF scaffold 把「CarId 唯一」誤判成 Car 與 Order 一對一
 CREATE UNIQUE INDEX UX_Orders_CarId_Pending
-    ON dbo.Orders (CarId)
+    ON dbo.Orders (CarId, PaymentStatus)
     WHERE PaymentStatus = N'Pending';
 GO
 

@@ -142,7 +142,7 @@ CarShop/                          repo 根目錄：git init 與執行 claude 的
 | 404 | 資源不存在 |
 | 409 | 狀態衝突（例：車輛已被鎖定、重複收藏、已有審核中的議價） |
 
-**唯一索引違規的處理**：寫入前以程式檢查（例如 `AnyAsync`）提供友善訊息；`SaveChangesAsync` 再以 `catch (DbUpdateException ex) when (ex.IsUniqueViolation())` 攔截同時送出的情況（SQL Server 錯誤碼 2601／2627），回傳相同的 409 訊息。`IsUniqueViolation()` 寫成共用的擴充方法。
+**唯一索引違規的處理**：寫入前以程式檢查（例如 `AnyAsync`），重複時回傳 409 與友善訊息。`SaveChangesAsync` **不攔截**唯一索引違規（SQL Server 錯誤碼 2601／2627）：兩個請求同時通過檢查時，由資料庫的唯一索引擋下其中一個，該請求回傳 500，資料不會重複。RowVersion 衝突（`DbUpdateConcurrencyException`）不在此限，處理方式見 7.1 節的下訂流程。
 
 ### 時間
 
@@ -473,7 +473,7 @@ public interface IFileStorage
 |---|---|
 | `CLAUDE.md` | 指令（build、test、scaffold）、分層規則、禁止事項（不回傳 CostPrice、不拼接 SQL、不提交機密、**不手動修改 scaffold 產生的檔案**）、指向 `docs/` 的兩份文件 |
 | 權限 deny 規則 | 禁止讀取 User Secrets 檔案與 `.env` 類檔案；禁止 `git push` |
-| Hook | `PostToolUse`：修改 `.cs` 後執行 `dotnet build` 檢查是否能編譯；`Stop`：結束前執行測試，失敗則繼續修正 |
+| Hook | **不使用**。改在 `CLAUDE.md` 規定：修改程式碼後，結束前必須執行 `dotnet test`，並在回報中寫出測試結果。由開發者確認回報內容 |
 | Skill | `add-endpoint`：新增 API 的標準流程（DTO → Service → Controller → 整合測試 → 更新文件） |
 | Subagent | `security-reviewer`：每個里程碑完成後進行安全審查 |
 
@@ -485,7 +485,7 @@ public interface IFileStorage
 
 | 階段 | 內容 |
 |---|---|
-| 0. 骨架 | 撰寫 `database/schema.sql` 與 `data.sql` 並在本機建庫；建立方案與專案；scaffold 產生 Entity 與 `AppDbContext`；Problem Details、OpenAPI、CLAUDE.md 與 Hook 設定 |
+| 0. 骨架 | 撰寫 `database/schema.sql` 與 `data.sql` 並在本機建庫；建立方案與專案；scaffold 產生 Entity 與 `AppDbContext`；Problem Details、OpenAPI、CLAUDE.md 與權限設定 |
 | 1. 里程碑 1 API | 認證（註冊、登入、Google、補填資料）、個人資料、車輛、品牌、分店、收藏 |
 | 2. 里程碑 2 API | 預約、議價、賣車申請（含上傳） |
 | 3. 里程碑 3 API | 訂單、綠界串接、背景工作、併發測試 |
@@ -510,3 +510,5 @@ public interface IFileStorage
 | 9 | 密碼規則：8～64 字元，需含英文字母與數字 | 確認採用 |
 | 10 | 是否使用 Refresh Token | 不使用，改為單一 JWT，有效期 2 小時（A3） |
 | 11 | 狀態與分類的表示 | 常數類別（A11） |
+| 12 | 是否使用 Claude Code hook | 不使用；測試由 CLAUDE.md 規則要求 agent 執行並回報，開發者自行確認 |
+| 13 | 同時送出造成的唯一索引違規如何回應 | 只以 `AnyAsync` 事先檢查，不攔截 2601／2627，同時送出的那一筆回傳 500；不建立 `IsUniqueViolation()`（見第 4 節） |

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/secrets.json)",
+      "Read(~/AppData/Roaming/Microsoft/UserSecrets/**)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Bash(git push:*)",
+      "Bash(dotnet user-secrets list:*)",
+      "Bash(*secrets.json*)",
+      "PowerShell(git push:*)",
+      "PowerShell(dotnet user-secrets list:*)",
+      "PowerShell(*secrets.json*)"
+    ]
+  }
+}

@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# 使用者上傳的檔案（不進 git）
+CarShop/wwwroot/uploads/
+
+# Claude Code 個人設定
+.claude/settings.local.json

@@ -158,9 +158,10 @@
 - 除了各資料表列出的唯一索引，另外建立：
   - 所有外鍵欄位的一般索引（已被主鍵開頭欄位涵蓋的不重複建立）
   - `Reservations`、`Offers`：`(UserId, CarId) WHERE Status = 'Pending'` 篩選唯一索引，防止同時送出造成重複申請
-  - `Orders`：`(CarId) WHERE PaymentStatus = 'Pending'` 篩選唯一索引，`RowVersion` 之外的第二道防線
-  - `CarImages`：`(CarId) WHERE IsPrimary = 1` 篩選唯一索引，每台車只能有一張主圖
-  - 違反唯一索引時 SQL Server 回傳錯誤碼 2601／2627，API 須轉成 409（見 ARCHITECTURE.md 第 4 節）
+  - `Orders`：`(CarId, PaymentStatus) WHERE PaymentStatus = 'Pending'` 篩選唯一索引，`RowVersion` 之外的第二道防線
+  - `CarImages`：`(CarId, IsPrimary) WHERE IsPrimary = 1` 篩選唯一索引，每台車只能有一張主圖
+  - 上面兩個索引的第二欄已被篩選條件固定，效果等同只限制 `CarId`；加上第二欄是為了讓 EF Core scaffold 不把「車輛 ↔ 圖片／訂單」誤判成一對一（見第 9 節第 32 項）
+  - 寫入前由 API 檢查並回傳 409；同時送出而違反唯一索引時（SQL Server 錯誤碼 2601／2627）不另外攔截，回傳 500（見 ARCHITECTURE.md 第 4 節）
 - 未特別標示「可 NULL」的欄位皆為 `NOT NULL`
 
 ### Roles
@@ -473,3 +474,4 @@
 | 29 | 電話格式 | 分店電話與會員手機**一律只存數字**，顯示時再加上連字號；API 收到含連字號或空白的輸入時，先移除再驗證與儲存。會員手機固定 10 碼且以 `09` 開頭（例：`0912345678`）；市話含區碼為 9～10 碼（例：台北 `0227971688`、高雄 `075563660`） |
 | 30 | 種子資料圖片 | 使用**本機圖片檔**，放在 API 專案的 `wwwroot/images/seed/`，`data.sql` 存相對路徑（例：`/images/seed/car-1-1.png`）；檔名格式 `car-{車輛Id}-{序號}.png`，800x600 佔位圖；不依賴外部服務，CSP 不需例外 |
 | 31 | 預約、議價、賣車的 CHECK 約束 | 目前只允許 `Pending`；做後台加入其他狀態時須一併修改 |
+| 32 | 付款中訂單、主圖的篩選唯一索引欄位 | 加上第二欄：`Orders (CarId, PaymentStatus)`、`CarImages (CarId, IsPrimary)`。只有 `CarId` 一欄時，scaffold 會產生單數的 `Car.Order`、`Car.CarImage` |
