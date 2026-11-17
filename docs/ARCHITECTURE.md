@@ -409,10 +409,12 @@ POST /api/payments/ecpay/notify（綠界伺服器呼叫，不經過使用者瀏�
 
 ### 7.4 身分證加密（Q4）
 
-- 使用 ASP.NET Core **Data Protection** 加密後存入 `IdentityNumber`
-- **加密金鑰必須持久化保存**（存到指定資料夾或資料庫）。預設的金鑰可能在環境變更後遺失，**金鑰遺失＝所有身分證資料無法解密**
-- **唯一性檢查**：Data Protection 每次加密結果都不同，無法用密文比對是否重複。因此另存 `IdentityNumberHash` = HMAC-SHA256（身分證, 秘密金鑰），並建立唯一索引
+- 使用 **AES-256** 加密後存入 `IdentityNumber`（每次加密使用隨機 IV，IV 與密文一起以 Base64 儲存）
+- 加密金鑰（32 bytes，Base64）由開發者自行產生，放在 User Secrets 的 `Security:IdentityAesKey`；**金鑰需自行備份，金鑰遺失＝所有身分證資料無法解密**
+- **唯一性檢查**：隨機 IV 使每次加密結果都不同，無法用密文比對是否重複。因此另存 `IdentityNumberHash` = HMAC-SHA256（身分證, 秘密金鑰），並建立唯一索引
   - 使用 HMAC 而非一般 SHA-256：身分證組合有限，一般雜湊可被窮舉反查；沒有秘密金鑰就無法計算 HMAC
+  - 不使用每筆隨機 Salt：同一個身分證每次的雜湊必須相同，才能比對是否重複
+  - HMAC 金鑰放在 User Secrets 的 `Security:IdentityHmacKey`
   - 欄位允許 NULL（Google 會員補填前），使用篩選索引 `WHERE IdentityNumberHash IS NOT NULL`
   - 重複時的錯誤訊息不透露是哪個帳號使用
 - API 只輸出遮罩格式，例如 `A12****789`
@@ -443,7 +445,8 @@ public interface IFileStorage
 |---|---|
 | 資料庫連線字串 | User Secrets |
 | JWT 簽章金鑰 | User Secrets |
-| 身分證 HMAC 金鑰 | User Secrets |
+| 身分證 HMAC 金鑰（`Security:IdentityHmacKey`） | User Secrets |
+| 身分證 AES 加密金鑰（`Security:IdentityAesKey`） | User Secrets |
 | Google Client Secret | User Secrets |
 | reCAPTCHA Secret Key | User Secrets |
 | 綠界 HashKey、HashIV、MerchantID | User Secrets |

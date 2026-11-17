@@ -3,6 +3,7 @@ using CarShop.Exceptions;
 using CarShop.Infrastructure.Security;
 using CarShop.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 namespace CarShop.Controllers
@@ -18,6 +19,7 @@ namespace CarShop.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest registerRequest)
         {
             try
@@ -32,6 +34,7 @@ namespace CarShop.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
         {
             var tmp = await _authService.LoginAsync(loginRequest);  

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,11 +55,48 @@ builder.Services.AddAuthorization();
 
 // JwtHelper 沒有保存每次請求不同的狀態，整個應用程式共用一個即可
 builder.Services.AddSingleton<JwtHelper>();
+builder.Services.AddSingleton<IDHasher>();
+builder.Services.AddSingleton<IDEncryptor>();
 //註冊service
 builder.Services.AddScoped<AuthService>();
+//RateLimit
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    //"login"：每個 IP 每分鐘 10 次
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",   // 依 IP 分開計算
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // "register"，每分鐘 5 次
+    options.AddPolicy("register", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", 
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+    // 超過時加上 Retry-After 標頭（告訴前端幾秒後可以再試）
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString();
+        }
+        return ValueTask.CompletedTask;
+    };
+});
 var app = builder.Build();
 
-// ---------- 中介軟體管線（順序有意義） ----------
+// ----------中介軟體----------
 
 // 未處理的例外 → 500 Problem Details（開發環境由框架自動使用開發者錯誤頁）
 if (!app.Environment.IsDevelopment())
@@ -76,7 +114,7 @@ app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseRateLimiter();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

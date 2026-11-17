@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using CarShop.Infrastructure.Security;
+using System.ComponentModel.DataAnnotations;
 
 namespace CarShop.Dtos.Auth
 {
@@ -19,6 +20,7 @@ namespace CarShop.Dtos.Auth
         [MaxLength(10)]
         public string Phone { get; set; } = string.Empty;
         [Required]
+        [TWId(ErrorMessage = "身分證格式錯誤")]
         public string IdentityNumber { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
