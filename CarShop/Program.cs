@@ -59,6 +59,7 @@ builder.Services.AddSingleton<IDHasher>();
 builder.Services.AddSingleton<IDEncryptor>();
 //註冊service
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<PostService>();
 //RateLimit
 builder.Services.AddRateLimiter(options =>
 {
